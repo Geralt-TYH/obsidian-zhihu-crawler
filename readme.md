@@ -26,3 +26,7 @@ python main.py [收藏夹的url]
 - 通过电子邮件 tangyinhaowork@qq.com 联系我
 - 在[obsidian 中文论坛](https://forum-zh.obsidian.md/)中 @致九
 
+# 下一步工作
+-[ ] 将脚本图形化
+
+
