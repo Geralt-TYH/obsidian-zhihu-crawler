@@ -35,6 +35,8 @@ class ObsidianStyleConverter(MarkdownConverter):
     def convert_img(self, el, text, convert_as_inline):
         alt = el.attrs.get('alt', None) or ''
         src = el.attrs.get('src', None) or ''
+        if not os.path.exists('剪藏'):
+            os.mkdir('剪藏')
 
         if not os.path.exists('剪藏/assets'):
             os.mkdir('剪藏/assets')
@@ -218,7 +220,9 @@ def testMarkdownifySingleAnswer():
     content = get_single_answer_content(url)
     md = markdownify(content, heading_style="ATX")
     id = url.split('/')[-1]
-    with open("./" + id + ".md", "w", encoding='utf-8') as md_file:
+    if not os.path.exists("剪藏"):
+        os.mkdir("剪藏")
+    with open("./剪藏/" + id + ".md", "w", encoding='utf-8') as md_file:
         md_file.write(md)
     print("{} 转换成功".format(id))
 
@@ -233,7 +237,7 @@ def testMarkdownifySinglePost():
 
 
 # if __name__ == '__main__':
-#     testMarkdownifySinglePost()
+#     testMarkdownifySingleAnswer()
 
 
 
