@@ -1,0 +1,8 @@
+venv
+venv/*
+assets
+.idea
+剪藏
+剪藏/*
+.obsidian
+.obsidian/*
