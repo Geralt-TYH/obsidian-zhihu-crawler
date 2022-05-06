@@ -6,3 +6,6 @@ assets
 剪藏/*
 .obsidian
 .obsidian/*
+build/
+dist/
+*.spec

@@ -35,16 +35,17 @@ class ObsidianStyleConverter(MarkdownConverter):
     def convert_img(self, el, text, convert_as_inline):
         alt = el.attrs.get('alt', None) or ''
         src = el.attrs.get('src', None) or ''
-        if not os.path.exists('剪藏'):
-            os.mkdir('剪藏')
 
-        if not os.path.exists('剪藏/assets'):
-            os.mkdir('剪藏/assets')
+        if not os.path.exists(os.path.expanduser("~/Downloads/剪藏")):
+            os.mkdir(os.path.expanduser("~/Downloads/剪藏"))
+
+        if not os.path.exists(os.path.expanduser("~/Downloads/剪藏/assets")):
+            os.mkdir(os.path.expanduser("~/Downloads/剪藏/assets"))
 
         img_content = requests.get(url=src, headers=headers).content
         img_content_name = src.split('?')[0].split('/')[-1]
 
-        with open("./剪藏/assets/" + img_content_name, 'wb') as fp:
+        with open(os.path.expanduser("~/Downloads/剪藏/assets")+'/' + img_content_name, 'wb') as fp:
             fp.write(img_content)
 
         return '![[%s]]\n(%s)\n\n' % (img_content_name, alt)
