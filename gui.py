@@ -8,6 +8,7 @@ import os
 import time
 import random
 import sys
+from utils import filter_title_str
 
 class myStdout():	# 重定向类
     def __init__(self):
@@ -62,9 +63,12 @@ def clip():
         md = markdownify(content, heading_style="ATX")
         id = url.split('/')[-1]
 
-        if not os.path.exists(os.path.expanduser("~/Downloads/剪藏")):
-            os.mkdir(os.path.expanduser("~/Downloads/剪藏"))
-        with open(os.path.expanduser("~/Downloads/剪藏") +'/'+ title + ".md", "w", encoding='utf-8') as md_file:
+        downloadDir = os.path.join(os.path.expanduser("~"), "Downloads", "剪藏")
+        if not os.path.exists(downloadDir):
+            os.mkdir(downloadDir)
+
+
+        with open(os.path.join(downloadDir,filter_title_str(title) + ".md") , "w", encoding='utf-8') as md_file:
             md_file.write(md)
         # print("{} 转换成功".format(id))
         time.sleep(random.randint(1,5))

@@ -36,16 +36,18 @@ class ObsidianStyleConverter(MarkdownConverter):
         alt = el.attrs.get('alt', None) or ''
         src = el.attrs.get('src', None) or ''
 
-        if not os.path.exists(os.path.expanduser("~/Downloads/剪藏")):
-            os.mkdir(os.path.expanduser("~/Downloads/剪藏"))
-
-        if not os.path.exists(os.path.expanduser("~/Downloads/剪藏/assets")):
-            os.mkdir(os.path.expanduser("~/Downloads/剪藏/assets"))
+        downloadDir = os.path.join(os.path.expanduser("~"), "Downloads", "剪藏")
+        if not os.path.exists(downloadDir):
+            os.mkdir(downloadDir)
+        assetsDir = os.path.join(downloadDir,'assets')
+        if not os.path.exists(assetsDir):
+            os.mkdir(assetsDir)
 
         img_content = requests.get(url=src, headers=headers).content
         img_content_name = src.split('?')[0].split('/')[-1]
 
-        with open(os.path.expanduser("~/Downloads/剪藏/assets")+'/' + img_content_name, 'wb') as fp:
+        imgPath = os.path.join(assetsDir,img_content_name)
+        with open(imgPath, 'wb') as fp:
             fp.write(img_content)
 
         return '![[%s]]\n(%s)\n\n' % (img_content_name, alt)
@@ -104,6 +106,8 @@ def get_article_nums_of_collection(collection_id):
 
 # 解析出每个回答的具体链接
 def get_article_urls_in_collection(collection_id):
+    collection_id =collection_id.replace('\n','')
+
     offset = 0
     limit = 20
 
@@ -188,58 +192,62 @@ def html_template(data):
 
 
 
-if __name__=='__main__':
-    args = parser.parse_args()
-    collection_url = args.collection_url[0]
-    collection_id = collection_url.split('?')[0].split('/')[-1]
-    urls,titles = get_article_urls_in_collection(collection_id)
-
-    for  i in  tqdm(range(len(urls))):
-        content = None
-        url = urls[i]
-        title = titles[i]
-
-        if url.find('zhuanlan')!=-1:
-            content = get_single_post_content(url)
-        else:
-            content = get_single_answer_content(url)
-
-        md = markdownify(content, heading_style="ATX")
-        id = url.split('/')[-1]
-
-        if not os.path.exists("剪藏"):
-            os.mkdir("剪藏")
-        with open("./剪藏/" + title + ".md", "w", encoding='utf-8') as md_file:
-            md_file.write(md)
-        # print("{} 转换成功".format(id))
-        time.sleep(random.randint(1,5))
-    print("全部下载完毕")
-
-
-def testMarkdownifySingleAnswer():
-    url = "https://www.zhihu.com/question/506166712/answer/2271842801"
-    content = get_single_answer_content(url)
-    md = markdownify(content, heading_style="ATX")
-    id = url.split('/')[-1]
-    if not os.path.exists("剪藏"):
-        os.mkdir("剪藏")
-    with open("./剪藏/" + id + ".md", "w", encoding='utf-8') as md_file:
-        md_file.write(md)
-    print("{} 转换成功".format(id))
-
-def testMarkdownifySinglePost():
-    url = 'https://zhuanlan.zhihu.com/p/386395767'
-    content = get_single_post_content(url)
-    md = markdownify(content, heading_style="ATX")
-    id = url.split('/')[-1]
-    with open("./" + id + ".md", "w", encoding='utf-8') as md_file:
-        md_file.write(md)
-    print("{} 转换成功".format(id))
-
-
-# if __name__ == '__main__':
-#     testMarkdownifySingleAnswer()
-
+# if __name__=='__main__':
+#     args = parser.parse_args()
+#     collection_url = args.collection_url[0]
+#     collection_id = collection_url.split('?')[0].split('/')[-1]
+#     urls,titles = get_article_urls_in_collection(collection_id)
+#
+#     for  i in  tqdm(range(len(urls))):
+#         content = None
+#         url = urls[i]
+#         title = titles[i]
+#
+#         if url.find('zhuanlan')!=-1:
+#             content = get_single_post_content(url)
+#         else:
+#             content = get_single_answer_content(url)
+#
+#         md = markdownify(content, heading_style="ATX")
+#         id = url.split('/')[-1]
+#
+#         downloadDir = os.path.join(os.path.expanduser("~"), "Downloads", "剪藏")
+#         if not os.path.exists(downloadDir):
+#             os.mkdir(downloadDir)
+#
+#         with open(os.path.join(downloadDir, title + ".md"), "w", encoding='utf-8') as md_file:
+#             md_file.write(md)
+#         # print("{} 转换成功".format(id))
+#         time.sleep(random.randint(1,5))
+#     print("全部下载完毕")
+#
+#
+# def testMarkdownifySingleAnswer():
+#     url = "https://www.zhihu.com/question/506166712/answer/2271842801"
+#     content = get_single_answer_content(url)
+#     md = markdownify(content, heading_style="ATX")
+#     id = url.split('/')[-1]
+#
+#     downloadDir = os.path.join(os.path.expanduser("~"), "Downloads", "剪藏")
+#     if not os.path.exists(downloadDir):
+#         os.mkdir(downloadDir)
+#     with open(os.path.join(downloadDir, id + ".md"), "w", encoding='utf-8') as md_file:
+#         md_file.write(md)
+#     print("{} 转换成功".format(id))
+#
+# def testMarkdownifySinglePost():
+#     url = 'https://zhuanlan.zhihu.com/p/386395767'
+#     content = get_single_post_content(url)
+#     md = markdownify(content, heading_style="ATX")
+#     id = url.split('/')[-1]
+#     with open("./" + id + ".md", "w", encoding='utf-8') as md_file:
+#         md_file.write(md)
+#     print("{} 转换成功".format(id))
+#
+#
+# # if __name__ == '__main__':
+# #     testMarkdownifySingleAnswer()
+#
 
 
 
