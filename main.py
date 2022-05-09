@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 import re
 from tqdm import tqdm
 import argparse
+from utils import filter_title_str
 
 from markdownify import MarkdownConverter
 
@@ -192,36 +193,35 @@ def html_template(data):
 
 
 
-# if __name__=='__main__':
-#     args = parser.parse_args()
-#     collection_url = args.collection_url[0]
-#     collection_id = collection_url.split('?')[0].split('/')[-1]
-#     urls,titles = get_article_urls_in_collection(collection_id)
-#
-#     for  i in  tqdm(range(len(urls))):
-#         content = None
-#         url = urls[i]
-#         title = titles[i]
-#
-#         if url.find('zhuanlan')!=-1:
-#             content = get_single_post_content(url)
-#         else:
-#             content = get_single_answer_content(url)
-#
-#         md = markdownify(content, heading_style="ATX")
-#         id = url.split('/')[-1]
-#
-#         downloadDir = os.path.join(os.path.expanduser("~"), "Downloads", "剪藏")
-#         if not os.path.exists(downloadDir):
-#             os.mkdir(downloadDir)
-#
-#         with open(os.path.join(downloadDir, title + ".md"), "w", encoding='utf-8') as md_file:
-#             md_file.write(md)
-#         # print("{} 转换成功".format(id))
-#         time.sleep(random.randint(1,5))
-#     print("全部下载完毕")
-#
-#
+if __name__=='__main__':
+    args = parser.parse_args()
+    collection_url = args.collection_url[0]
+    collection_id = collection_url.split('?')[0].split('/')[-1]
+    urls,titles = get_article_urls_in_collection(collection_id)
+
+    for  i in  tqdm(range(len(urls))):
+        content = None
+        url = urls[i]
+        title = titles[i]
+
+        if url.find('zhuanlan')!=-1:
+            content = get_single_post_content(url)
+        else:
+            content = get_single_answer_content(url)
+
+        md = markdownify(content, heading_style="ATX")
+        id = url.split('/')[-1]
+
+        downloadDir = os.path.join(os.path.expanduser("~"), "Downloads", "剪藏")
+        if not os.path.exists(downloadDir):
+            os.mkdir(downloadDir)
+
+        with open(os.path.join(downloadDir, filter_title_str(title) + ".md"), "w", encoding='utf-8') as md_file:
+            md_file.write(md)
+        # print("{} 转换成功".format(id))
+        time.sleep(random.randint(1,5))
+    print("全部下载完毕")
+
 # def testMarkdownifySingleAnswer():
 #     url = "https://www.zhihu.com/question/506166712/answer/2271842801"
 #     content = get_single_answer_content(url)

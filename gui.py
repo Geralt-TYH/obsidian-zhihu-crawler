@@ -24,7 +24,7 @@ class myStdout():	# 重定向类
 
     def write(self, info):
         # info信息即标准输出sys.stdout和sys.stderr接收到的输出信息
-        contents.insert('end', info)	# 在多行文本控件最后一行插入print信息
+        contents.insert(END, info+'\n')	# 在多行文本控件最后一行插入print信息
         contents.update()	# 更新显示的文本，不加这句插入的信息无法显示
         contents.see(END)	# 始终显示最后一行，不加这句，当文本溢出控件最后一行时，不会自动显示最后一行
 
@@ -43,6 +43,7 @@ def validate_url(url):
 
 def clip():
     collection_url = entry_url.get()
+
     if not validate_url(collection_url):
         print("非知乎网址，其他形式不支持")
         return
@@ -51,6 +52,8 @@ def clip():
     urls, titles = get_article_urls_in_collection(collection_id)
 
     for  i in  tqdm(range(len(urls))):
+        time.sleep(random.randint(1, 5))
+
         content = None
         url = urls[i]
         title = titles[i]
@@ -67,11 +70,9 @@ def clip():
         if not os.path.exists(downloadDir):
             os.mkdir(downloadDir)
 
-
         with open(os.path.join(downloadDir,filter_title_str(title) + ".md") , "w", encoding='utf-8') as md_file:
             md_file.write(md)
-        # print("{} 转换成功".format(id))
-        time.sleep(random.randint(1,5))
+
     print("全部下载完毕")
 
 
@@ -82,10 +83,7 @@ root.title("zhihu crawler")
 frame = Frame(root)
 frame.pack()
 
-
-
-
-contents = Text(root)
+contents = ScrolledText(root)
 contents.pack(side=BOTTOM, expand=True, fill=BOTH)
 
 # 输入框
