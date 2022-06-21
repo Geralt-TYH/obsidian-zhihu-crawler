@@ -13,8 +13,9 @@ from utils import filter_title_str
 from markdownify import MarkdownConverter
 
 parser = argparse.ArgumentParser(description='知乎文章剪藏')
-parser.add_argument('collection_url', metavar='collection_url', type=str,nargs=1,
+parser.add_argument('collection_url', metavar='collection_url', type=str, nargs=1,
                     help='收藏夹（必须是公开的收藏夹）的网址')
+
 
 class ObsidianStyleConverter(MarkdownConverter):
     """
@@ -40,14 +41,14 @@ class ObsidianStyleConverter(MarkdownConverter):
         downloadDir = os.path.join(os.path.expanduser("~"), "Downloads", "剪藏")
         if not os.path.exists(downloadDir):
             os.mkdir(downloadDir)
-        assetsDir = os.path.join(downloadDir,'assets')
+        assetsDir = os.path.join(downloadDir, 'assets')
         if not os.path.exists(assetsDir):
             os.mkdir(assetsDir)
 
         img_content = requests.get(url=src, headers=headers).content
         img_content_name = src.split('?')[0].split('/')[-1]
 
-        imgPath = os.path.join(assetsDir,img_content_name)
+        imgPath = os.path.join(assetsDir, img_content_name)
         with open(imgPath, 'wb') as fp:
             fp.write(img_content)
 
@@ -64,7 +65,8 @@ class ObsidianStyleConverter(MarkdownConverter):
             text = text.replace('[', '[^')
             return '%s' % text
 
-        if (el.attrs and 'data-reference-link' in el.attrs) or (el.attrs['class'] and ('ReferenceList-backLink' in el.attrs['class'])):
+        if (el.attrs and 'data-reference-link' in el.attrs) or (
+                el.attrs['class'] and ('ReferenceList-backLink' in el.attrs['class'])):
             text = '[^{}]: '.format(href[5])
             return '%s' % text
 
@@ -107,7 +109,7 @@ def get_article_nums_of_collection(collection_id):
 
 # 解析出每个回答的具体链接
 def get_article_urls_in_collection(collection_id):
-    collection_id =collection_id.replace('\n','')
+    collection_id = collection_id.replace('\n', '')
 
     offset = 0
     limit = 20
@@ -134,7 +136,7 @@ def get_article_urls_in_collection(collection_id):
 
         offset += limit
 
-    return url_list,title_list
+    return url_list, title_list
 
 
 # 获得单条答案的数据
@@ -145,16 +147,34 @@ def get_single_answer_content(answer_url):
     html_content = requests.get(answer_url, headers=headers)
     soup = BeautifulSoup(html_content.text, "lxml")
     answer_content = soup.find('div', class_="AnswerCard").find("div", class_="RichContent-inner")
-    # 去除不必要的style标签
-    for el in answer_content.find_all('style'):
-        el.extract()
 
-    for el in answer_content.select('img[src*="data:image/svg+xml"]'):
-        el.extract()
-    # 添加html外层标签
-    answer_content = html_template(answer_content)
+    if answer_content:
+        # 去除不必要的style标签
+        for el in answer_content.find_all('style'):
+            el.extract()
 
-    return answer_content
+        for el in answer_content.select('img[src*="data:image/svg+xml"]'):
+            el.extract()
+
+        # 提取元信息
+        # answerItem = soup.find("div",class_="ContentItem AnswerItem")
+        title = soup.find("h1", class_="QuestionHeader-title").get_text()
+        url = answer_url
+        authorName = soup.find("div", class_="AuthorInfo-head").find("a").get_text()
+
+        # 添加 yaml 区域
+        yaml_post_content = yaml_template(answer_content, title, url, author=authorName)
+
+        # 添加html外层标签
+        answer_content = html_template(yaml_post_content)
+
+    else:
+        answer_content = "该答案链接被404，无法直接访问"
+    md = markdownify(answer_content, heading_style="ATX")
+    # 清楚文章兽可能存在的空白
+    md = md.lstrip()
+
+    return md
 
 
 # 获取单条专栏文章的内容
@@ -169,13 +189,34 @@ def get_single_post_content(paper_url):
 
         for el in post_content.select('img[src*="data:image/svg+xml"]'):
             el.extract()
+
+        # 提取元信息
+        title = soup.find("h1", class_="Post-Title").get_text()
+        url = paper_url
+        authorInfo = soup.find("div", class_="AuthorInfo-content")
+        authorName = authorInfo.find("a", class_="UserLink-link").get_text()
+
+        # 添加 yaml 区域
+        yaml_post_content = yaml_template(post_content, title, url, author=authorName)
+        # 添加html外层标签
+        post_content = html_template(yaml_post_content)
     else:
         post_content = "该文章链接被404，无法直接访问"
 
-    # 添加html外层标签
-    post_content = html_template(post_content)
+    md = markdownify(post_content, heading_style="ATX")
+    # 清楚文章兽可能存在的空白
+    md = md.lstrip()
 
-    return post_content
+    return md
+
+
+def yaml_template(data, title="", url="", author=""):
+    yaml = "---\n" + \
+           "title : %s\n" % title + \
+           "url : %s\n" % url + \
+           "author : %s\n" % author + \
+           "---\n\n%s" % data
+    return yaml
 
 
 def html_template(data):
@@ -192,25 +233,25 @@ def html_template(data):
     return html
 
 
-
-if __name__=='__main__':
+if __name__ == '__main__':
     args = parser.parse_args()
     collection_url = args.collection_url[0]
     collection_id = collection_url.split('?')[0].split('/')[-1]
-    urls,titles = get_article_urls_in_collection(collection_id)
+    urls, titles = get_article_urls_in_collection(collection_id)
 
-    for  i in  tqdm(range(len(urls))):
+    for i in tqdm(range(len(urls))):
         content = None
         url = urls[i]
         title = titles[i]
 
-        if url.find('zhuanlan')!=-1:
-            content = get_single_post_content(url)
-        else:
-            content = get_single_answer_content(url)
-
-        md = markdownify(content, heading_style="ATX")
-        id = url.split('/')[-1]
+        try:
+            if url.find('zhuanlan') != -1:
+                md = get_single_post_content(url)
+            else:
+                md = get_single_answer_content(url)
+        except:
+            print("发生错误内容标题：", title)
+            print("发生错误内容链接：",url)
 
         downloadDir = os.path.join(os.path.expanduser("~"), "Downloads", "剪藏")
         if not os.path.exists(downloadDir):
@@ -218,36 +259,6 @@ if __name__=='__main__':
 
         with open(os.path.join(downloadDir, filter_title_str(title) + ".md"), "w", encoding='utf-8') as md_file:
             md_file.write(md)
-        # print("{} 转换成功".format(id))
-        time.sleep(random.randint(1,5))
+
+        time.sleep(random.randint(1, 5))
     print("全部下载完毕")
-
-# def testMarkdownifySingleAnswer():
-#     url = "https://www.zhihu.com/question/506166712/answer/2271842801"
-#     content = get_single_answer_content(url)
-#     md = markdownify(content, heading_style="ATX")
-#     id = url.split('/')[-1]
-#
-#     downloadDir = os.path.join(os.path.expanduser("~"), "Downloads", "剪藏")
-#     if not os.path.exists(downloadDir):
-#         os.mkdir(downloadDir)
-#     with open(os.path.join(downloadDir, id + ".md"), "w", encoding='utf-8') as md_file:
-#         md_file.write(md)
-#     print("{} 转换成功".format(id))
-#
-# def testMarkdownifySinglePost():
-#     url = 'https://zhuanlan.zhihu.com/p/386395767'
-#     content = get_single_post_content(url)
-#     md = markdownify(content, heading_style="ATX")
-#     id = url.split('/')[-1]
-#     with open("./" + id + ".md", "w", encoding='utf-8') as md_file:
-#         md_file.write(md)
-#     print("{} 转换成功".format(id))
-#
-#
-# # if __name__ == '__main__':
-# #     testMarkdownifySingleAnswer()
-#
-
-
-
