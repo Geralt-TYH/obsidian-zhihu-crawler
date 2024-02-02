@@ -63,8 +63,7 @@ class ObsidianStyleConverter(MarkdownConverter):
         if el.get('aria-labelledby') and el.get('aria-labelledby').find('ref') > -1:
             text = text.replace('[', '[^')
             return '%s' % text
-
-        if (el.attrs and 'data-reference-link' in el.attrs) or (el.attrs['class'] and ('ReferenceList-backLink' in el.attrs['class'])):
+        if (el.attrs and 'data-reference-link' in el.attrs) or ('class' in el.attrs and ('ReferenceList-backLink' in el.attrs['class'])):
             text = '[^{}]: '.format(href[5])
             return '%s' % text
 
@@ -276,7 +275,9 @@ if __name__=='__main__':
                 md_file.write(md)
             # print("{} 转换成功".format(id))
             time.sleep(random.randint(1,5))
-        except:
+        except Exception as e:
+            print(content)
+            print(e)
             print(url, 'error')
 
     print("全部下载完毕")
