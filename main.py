@@ -85,7 +85,8 @@ headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36",
     "Connection": "keep-alive",
     "Accept": "text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "zh-CN,zh;q=0.8"}
+    "Accept-Language": "zh-CN,zh;q=0.8"
+}
 
 
 # 获取收藏夹的回答总数
@@ -127,14 +128,23 @@ def get_article_urls_in_collection(collection_id):
 
         for el in content['data']:
             url_list.append(el['content']['url'])
-            if el['content']['type'] == 'answer':
-                title_list.append(el['content']['question']['title'])
-            else:
-                title_list.append(el['content']['title'])
+            try:
+                if el['content']['type'] == 'answer':
+                    title_list.append(el['content']['question']['title'])
+                else:
+                    title_list.append(el['content']['title'])
+            except:
+                print('********')
+                print('TBD 非回答, 非专栏, 想法类收藏暂时无法处理')
+                for k, v in el['content'].items():
+                    if k in ['type', 'url']:
+                        print(k, v)
+                print('********')
+                url_list.pop()
 
         offset += limit
 
-    return url_list,title_list
+    return url_list, title_list
 
 
 # 获得单条答案的数据
@@ -144,13 +154,32 @@ def get_single_answer_content(answer_url):
 
     html_content = requests.get(answer_url, headers=headers)
     soup = BeautifulSoup(html_content.text, "lxml")
-    answer_content = soup.find('div', class_="AnswerCard").find("div", class_="RichContent-inner")
+    try:
+        answer_content = soup.find('div', class_="AnswerCard").find("div", class_="RichContent-inner")
+    except:
+        print(answer_url, 'failed')
+        return -1
     # 去除不必要的style标签
     for el in answer_content.find_all('style'):
         el.extract()
 
     for el in answer_content.select('img[src*="data:image/svg+xml"]'):
         el.extract()
+    
+    for el in answer_content.find_all('a'): # 处理回答中的卡片链接
+        aclass = el.get('class')
+        if isinstance(aclass, list):
+            if aclass[0] == 'LinkCard':
+                linkcard_name = el.get('data-text')
+                el.string = linkcard_name if linkcard_name is not None else el.get('href')
+        else:
+            pass
+        try:
+            if el.get('href').startswith('mailto'): # 特殊bug, 正文的aaa@bbb.ccc会被识别为邮箱, 嵌入<a href='mailto:xxx'>中, markdown转换时会报错
+                el.name = 'p'
+        except:
+            print(answer_url, el) # 一些广告卡片, 不需要处理
+        
     # 添加html外层标签
     answer_content = html_template(answer_content)
 
@@ -169,8 +198,22 @@ def get_single_post_content(paper_url):
 
         for el in post_content.select('img[src*="data:image/svg+xml"]'):
             el.extract()
+        
+        for el in post_content.find_all('a'): # 处理专栏文章中的卡片链接
+            aclass = el.get('class')
+            if isinstance(aclass, list):
+                if aclass[0] == 'LinkCard':
+                    linkcard_name = el.get('data-text')
+                    el.string = linkcard_name if linkcard_name is not None else el.get('href')
+            else:
+                pass
+            try:
+                if el.get('href').startswith('mailto'): # 特殊bug, 正文的aaa@bbb.ccc会被识别为邮箱, 嵌入<a href='mailto:xxx'>中, markdown转换时会报错
+                    el.name = 'p'
+            except:
+                print(paper_url, el)
     else:
-        post_content = "该文章链接被404，无法直接访问"
+        post_content = "该文章链接被404, 无法直接访问"
 
     # 添加html外层标签
     post_content = html_template(post_content)
@@ -183,10 +226,10 @@ def html_template(data):
     html = '''
         <html>
         <head>
+        </head>
         <body>
         %s
         </body>
-        </head>
         </html>
         ''' % data
     return html
@@ -197,29 +240,45 @@ if __name__=='__main__':
     args = parser.parse_args()
     collection_url = args.collection_url[0]
     collection_id = collection_url.split('?')[0].split('/')[-1]
-    urls,titles = get_article_urls_in_collection(collection_id)
+    urls, titles = get_article_urls_in_collection(collection_id)
 
-    for  i in  tqdm(range(len(urls))):
+    assert len(urls) == len(titles), '地址标题列表长度不一致'
+
+    print('共获取 %d 篇可导出回答或专栏' % len(urls))
+
+    downloadDir = os.path.join(os.path.expanduser("~"), "Downloads", "剪藏")
+    if not os.path.exists(downloadDir):
+        os.mkdir(downloadDir)
+
+    for  i in tqdm(range(len(urls))):
         content = None
         url = urls[i]
         title = titles[i]
 
-        if url.find('zhuanlan')!=-1:
+        if os.path.exists(os.path.join(downloadDir, filter_title_str(title) + ".md")): # 跳过已经保存的文件
+            continue
+
+        if url.find('zhuanlan') != -1:
             content = get_single_post_content(url)
         else:
             content = get_single_answer_content(url)
+        
+        if content == -1:
+            print(url, 'get content failed.')
+            continue
+        
+        try:
+            md = markdownify(content, heading_style="ATX")
+            md = '> %s\n' % url + md
+            id = url.split('/')[-1]
 
-        md = markdownify(content, heading_style="ATX")
-        id = url.split('/')[-1]
+            with open(os.path.join(downloadDir, filter_title_str(title) + ".md"), "w", encoding='utf-8') as md_file:
+                md_file.write(md)
+            # print("{} 转换成功".format(id))
+            time.sleep(random.randint(1,5))
+        except:
+            print(url, 'error')
 
-        downloadDir = os.path.join(os.path.expanduser("~"), "Downloads", "剪藏")
-        if not os.path.exists(downloadDir):
-            os.mkdir(downloadDir)
-
-        with open(os.path.join(downloadDir, filter_title_str(title) + ".md"), "w", encoding='utf-8') as md_file:
-            md_file.write(md)
-        # print("{} 转换成功".format(id))
-        time.sleep(random.randint(1,5))
     print("全部下载完毕")
 
 # def testMarkdownifySingleAnswer():
