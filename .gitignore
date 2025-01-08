@@ -11,3 +11,4 @@ assets
 build/
 dist/
 *.spec
+cookies.json

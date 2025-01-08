@@ -9,12 +9,35 @@ import re
 from tqdm import tqdm
 import argparse
 from utils import filter_title_str
+import json
 
 from markdownify import MarkdownConverter
 
 parser = argparse.ArgumentParser(description='知乎文章剪藏')
 parser.add_argument('collection_url', metavar='collection_url', type=str,nargs=1,
-                    help='收藏夹（必须是公开的收藏夹）的网址')
+                    help='收藏夹（支持公开和私密收藏夹）的网址')
+
+# 读取cookies
+def load_cookies():
+    try:
+        with open('cookies.json', 'r') as f:
+            cookies_list = json.load(f)
+        cookies_dict = {}
+        for cookie in cookies_list:
+            cookies_dict[cookie['name']] = cookie['value']
+        return cookies_dict
+    except FileNotFoundError:
+        print("未找到cookies.json文件，将使用无登录模式访问（部分内容可能无法获取）")
+        return {}
+
+cookies = load_cookies()
+
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36",
+    "Connection": "keep-alive",
+    "Accept": "text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.8"
+}
 
 class ObsidianStyleConverter(MarkdownConverter):
     """
@@ -44,7 +67,7 @@ class ObsidianStyleConverter(MarkdownConverter):
         if not os.path.exists(assetsDir):
             os.mkdir(assetsDir)
 
-        img_content = requests.get(url=src, headers=headers).content
+        img_content = requests.get(url=src, headers=headers, cookies=cookies).content
         img_content_name = src.split('?')[0].split('/')[-1]
 
         imgPath = os.path.join(assetsDir,img_content_name)
@@ -80,14 +103,6 @@ def markdownify(html, **options):
     return ObsidianStyleConverter(**options).convert(html)
 
 
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36",
-    "Connection": "keep-alive",
-    "Accept": "text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "zh-CN,zh;q=0.8"
-}
-
-
 # 获取收藏夹的回答总数
 def get_article_nums_of_collection(collection_id):
     """
@@ -96,7 +111,7 @@ def get_article_nums_of_collection(collection_id):
     """
     try:
         collection_url = "https://www.zhihu.com/api/v4/collections/{}/items".format(collection_id)
-        html = requests.get(collection_url, headers=headers)
+        html = requests.get(collection_url, headers=headers, cookies=cookies)
         html.raise_for_status()
 
         # 页面总数
@@ -120,7 +135,7 @@ def get_article_urls_in_collection(collection_id):
         collection_url = "https://www.zhihu.com/api/v4/collections/{}/items?offset={}&limit={}".format(collection_id,
                                                                                                        offset, limit)
         try:
-            html = requests.get(collection_url, headers=headers)
+            html = requests.get(collection_url, headers=headers, cookies=cookies)
             content = html.json()
         except:
             return None
@@ -151,7 +166,7 @@ def get_single_answer_content(answer_url):
     # all_content = {}
     # question_id, answer_id = re.findall('https://www.zhihu.com/question/(\d+)/answer/(\d+)', answer_url)[0]
 
-    html_content = requests.get(answer_url, headers=headers)
+    html_content = requests.get(answer_url, headers=headers, cookies=cookies)
     soup = BeautifulSoup(html_content.text, "lxml")
     try:
         answer_content = soup.find('div', class_="AnswerCard").find("div", class_="RichContent-inner")
@@ -187,7 +202,7 @@ def get_single_answer_content(answer_url):
 
 # 获取单条专栏文章的内容
 def get_single_post_content(paper_url):
-    html_content = requests.get(paper_url, headers=headers)
+    html_content = requests.get(paper_url, headers=headers, cookies=cookies)
     soup = BeautifulSoup(html_content.text, "lxml")
     post_content = soup.find("div", class_="Post-RichText")
     # 去除不必要的style标签
