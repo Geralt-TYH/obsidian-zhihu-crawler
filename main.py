@@ -6,6 +6,7 @@ import time
 import requests
 from bs4 import BeautifulSoup
 import re
+from urllib.parse import urlparse
 from tqdm import tqdm
 import argparse
 from utils import filter_title_str
@@ -67,8 +68,15 @@ class ObsidianStyleConverter(MarkdownConverter):
         if not os.path.exists(assetsDir):
             os.mkdir(assetsDir)
 
-        img_content = requests.get(url=src, headers=headers, cookies=cookies).content
-        img_content_name = src.split('?')[0].split('/')[-1]
+        host = urlparse(src).hostname or ''
+        zhihu_host = (host == 'zhihu.com' or host.endswith('.zhihu.com')
+                      or host == 'zhimg.com' or host.endswith('.zhimg.com'))
+        img_content = requests.get(
+            url=src, headers=headers,
+            cookies=cookies if zhihu_host else None).content
+        img_content_name = src.split('?')[0].replace('\\', '/').split('/')[-1]
+        if not img_content_name or img_content_name in ('.', '..'):
+            return '![%s](%s)\n\n' % (alt, src)
 
         imgPath = os.path.join(assetsDir,img_content_name)
         with open(imgPath, 'wb') as fp:
